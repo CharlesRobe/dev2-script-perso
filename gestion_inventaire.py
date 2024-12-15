@@ -96,16 +96,39 @@ def generate_summary(file_path: str, output_file: str):
     print(f"Summary report generated: {output_file}")
 
 
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(description="Automatisez la gestion de l'inventaire avec ce script.")
+    subparsers = parser.add_subparsers(dest="command", help="Commandes disponibles")
+
+    # Commande pour consolider les fichiers
+    parser_consolidate = subparsers.add_parser("consolidate", help="Consolider les fichiers CSV")
+    parser_consolidate.add_argument("-i", "--input", required=True, help="Répertoire contenant les fichiers CSV")
+    parser_consolidate.add_argument("-o", "--output", required=True, help="Fichier de sortie consolidé")
+
+    # Commande pour rechercher
+    parser_search = subparsers.add_parser("search", help="Rechercher dans l'inventaire consolidé")
+    parser_search.add_argument("-f", "--file", required=True, help="Fichier CSV consolidé")
+    parser_search.add_argument("-c", "--category", help="Filtrer par catégorie")
+
+    # Commande pour générer un rapport
+    parser_summary = subparsers.add_parser("summary", help="Générer un rapport résumé")
+    parser_summary.add_argument("-f", "--file", required=True, help="Fichier CSV consolidé")
+    parser_summary.add_argument("-o", "--output", required=True, help="Fichier de sortie du résumé")
+
+    args = parser.parse_args()
+
+    if args.command == "consolidate":
+        consolidate_files(args.input, args.output)
+    elif args.command == "search":
+        filters = {"category": args.category} if args.category else {}
+        results = search_inventory(args.file, **filters)
+        print("Résultats de la recherche :", results)
+    elif args.command == "summary":
+        generate_summary(args.file, args.output)
+    else:
+        parser.print_help()
+
 if __name__ == "__main__":
-    # Example usage
-    os.makedirs(DATA_DIRECTORY, exist_ok=True)  # Ensure the data directory exists
-
-    # Consolidate inventory files
-    consolidate_files(DATA_DIRECTORY, CONSOLIDATED_FILE)
-
-    # Search inventory for products in a specific category
-    search_results = search_inventory(CONSOLIDATED_FILE, category="Electronics")
-    print("Search Results:", search_results)
-
-    # Generate summary report
-    generate_summary(CONSOLIDATED_FILE, "summary_report.csv")
+    main()
