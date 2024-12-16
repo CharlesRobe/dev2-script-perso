@@ -122,55 +122,46 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
 
 def main():
     """
-    Point d'entrée principal. Affiche un menu interactif pour que l'utilisateur choisisse une action.
+    Point d'entrée principal. Fonctionne en ligne de commande avec un shell interactif en cas d'erreur.
     """
     global REPERTOIRE_DONNEES, FICHIER_FUSIONNE
 
     # Configuration des arguments via argparse
     parser = argparse.ArgumentParser(description="Automatisez la gestion de l'inventaire.")
+    parser.add_argument("action", choices=["consolider", "chercher", "résumer"],
+                        help="Action à effectuer : consolider, chercher ou résumer.")
     parser.add_argument("-d", "--data-directory", default=REPERTOIRE_DONNEES,
                         help="Répertoire contenant les fichiers CSV.")
     parser.add_argument("-o", "--output-file", default=FICHIER_FUSIONNE,
                         help="Chemin du fichier fusionné.")
+    parser.add_argument("-c", "--critere", help="Critère de recherche pour l'action 'chercher' (ex : category=Electronics).")
     args = parser.parse_args()
 
-    # Mise à jour des constantes à partir des arguments
-    REPERTOIRE_DONNEES = args.data_directory
-    FICHIER_FUSIONNE = args.output_file
+    # Confirmation interactive
+    parametres = f"Action : {args.action}, Répertoire : {args.data_directory}, Fichier : {args.output_file}"
+    if not confirmer_parametres(parametres):
+        REPERTOIRE_DONNEES = input("Entrez le nouveau répertoire des données : ")
+        FICHIER_FUSIONNE = input("Entrez le nouveau fichier de sortie : ")
+        args.data_directory = REPERTOIRE_DONNEES
+        args.output_file = FICHIER_FUSIONNE
 
-    while True:
-        print("\n=== Menu de gestion de l'inventaire ===")
-        print("1. Consolider les fichiers CSV")
-        print("2. Rechercher dans l'inventaire")
-        print("3. Générer un rapport récapitulatif")
-        print("4. Quitter")
-        choix = input("Choisissez une option (1-4) : ")
+    # Exécution des actions en fonction de l'argument "action"
+    if args.action == "consolider":
+        fusionner_fichiers(args.data_directory, args.output_file)
 
-        if choix == "1":
-            # Consolider les fichiers CSV
-            fusionner_fichiers(REPERTOIRE_DONNEES, FICHIER_FUSIONNE)
-
-        elif choix == "2":
-            # Rechercher dans l'inventaire
-            critere = input("Entrez un critère de recherche (ex : category=Electronics) : ")
-            cle, valeur = critere.split("=")
-            resultats = rechercher_inventaire(FICHIER_FUSIONNE, **{cle: valeur})
+    elif args.action == "chercher":
+        if not args.critere:
+            print("Vous devez fournir un critère de recherche avec --critere.")
+        else:
+            cle, valeur = args.critere.split("=")
+            resultats = rechercher_inventaire(args.output_file, **{cle: valeur})
             print("Résultats de recherche :", resultats)
 
-        elif choix == "3":
-            # Générer un rapport récapitulatif
-            try:
-                generer_resume(FICHIER_FUSIONNE, "rapport_resume.csv")
-            except ValueError as e:
-                print(f"Erreur lors de la génération du résumé : {e}")
-
-        elif choix == "4":
-            # Quitter le programme
-            print("Au revoir !")
-            break
-
-        else:
-            print("Option invalide, veuillez réessayer.")
+    elif args.action == "résumer":
+        try:
+            generer_resume(args.output_file, "rapport_resume.csv")
+        except ValueError as e:
+            print(f"Erreur lors de la génération du résumé : {e}")
 
 
 if __name__ == "__main__":
