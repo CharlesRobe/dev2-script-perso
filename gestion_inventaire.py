@@ -5,7 +5,8 @@ from typing import List, Dict
 
 # Constantes pour les chemins par défaut
 REPERTOIRE_DONNEES = "csv"
-FICHIER_FUSIONNE = os.path.join(REPERTOIRE_DONNEES, "inventaire_fusionne.csv")
+FICHIER_FUSIONNE =  "output/inventaire_fusionne.csv"
+
 
 def confirmer_parametres(parametres: str) -> bool:
     """
@@ -24,7 +25,6 @@ def confirmer_parametres(parametres: str) -> bool:
     return choix == "1"
 
 
-
 def rechercher_inventaire(chemin_fichier: str, filtre) -> List[Dict[str, str]]:
     """
     Recherche dans l'inventaire en fonction des filtres fournis.
@@ -37,7 +37,7 @@ def rechercher_inventaire(chemin_fichier: str, filtre) -> List[Dict[str, str]]:
         List[Dict[str, str]]: Liste des lignes correspondantes.
     """
     resultats = []
-
+    print(chemin_fichier)
     with open(chemin_fichier, 'r', newline='') as fichier:
         lecteur = csv.DictReader(fichier, delimiter=';')
         if filtre[0] not in lecteur.fieldnames:
@@ -50,7 +50,6 @@ def rechercher_inventaire(chemin_fichier: str, filtre) -> List[Dict[str, str]]:
     print("-" * 60)
     for ligne in resultats:
         print(f"{ligne['name']:<20} | {ligne['quantity']:<10} | {ligne['price']:<10} | {ligne['category']:<15}")
-
 
 
 def fusionner_fichiers(repertoire: str, fichier_sortie: str):
@@ -89,6 +88,7 @@ def fusionner_fichiers(repertoire: str, fichier_sortie: str):
     else:
         print("Aucune donnée valide à fusionner.")
 
+
 def generer_resume(chemin_fichier: str, fichier_sortie: str):
     """
     Génère un rapport récapitulatif et l'exporte en CSV.
@@ -117,25 +117,25 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
             raise ValueError(f"Le fichier source {chemin_fichier} est vide.")
 
         for ligne in lignes:
-            categorie = ligne.get('category', 'Inconnu')
+            category = ligne.get('category', 'Inconnu')
             quantite = int(ligne.get('quantity', 0))
             prix = float(ligne.get('price', 0))
 
-            if categorie not in resume:
-                resume[categorie] = {'quantite_totale': 0, 'valeur_totale': 0}
+            if category not in resume:
+                resume[category] = {'quantity': 0, 'price': 0}
 
-            resume[categorie]['quantite_totale'] += quantite
-            resume[categorie]['valeur_totale'] += quantite * prix
+            resume[category]['quantity'] += quantite
+            resume[category]['price'] += quantite * prix
 
     # Écriture du résumé dans le fichier de sortie
     with open(fichier_sortie, 'w', newline='', encoding='utf-8') as fichier:
-        ecrivain = csv.DictWriter(fichier, fieldnames=['categorie', 'quantite_totale', 'valeur_totale'], delimiter=";")
+        ecrivain = csv.DictWriter(fichier, fieldnames=['category', 'quantity', 'price'], delimiter=";")
         ecrivain.writeheader()
-        for categorie, donnees in resume.items():
+        for category, donnees in resume.items():
             ecrivain.writerow({
-                'categorie': categorie,
-                'quantite_totale': donnees['quantite_totale'],
-                'valeur_totale': donnees['valeur_totale']
+                'category': category,
+                'quantity': donnees['quantity'],
+                'price': donnees['price']
             })
     print(f"Rapport récapitulatif généré : {fichier_sortie}")
 
@@ -150,41 +150,46 @@ def main():
     parser = argparse.ArgumentParser(description="Automatisez la gestion de l'inventaire.")
     parser.add_argument("action", choices=["consolider", "chercher", "résumer"],
                         help="Action à effectuer : consolider, chercher ou résumer.")
-    parser.add_argument("-d", "--data-directory", default=REPERTOIRE_DONNEES,
+    parser.add_argument("-d", "--csv-directory", default=REPERTOIRE_DONNEES,
                         help="Répertoire contenant les fichiers CSV.")
     parser.add_argument("-o", "--output-file", default=FICHIER_FUSIONNE,
                         help="Chemin du fichier fusionné.")
     parser.add_argument("-c", "--critere", help="Critère de recherche pour l'action 'chercher' (ex : "
                                                 "category=Electronics).")
+
+    parser.add_argument("-b", "--base_file", help="Fichier a resumer' (ex : test.csv.)")
+
     args = parser.parse_args()
 
     # Assurer l'existence du répertoire csv
     os.makedirs(REPERTOIRE_DONNEES, exist_ok=True)
 
     # Confirmation interactive
-    parametres = f"Action : {args.action}, Répertoire : {args.data_directory}, Fichier : {args.output_file}"
+    parametres = f"Action : {args.action}, Répertoire : {args.csv_directory}"
     if not confirmer_parametres(parametres):
         REPERTOIRE_DONNEES = input("Entrez le nouveau répertoire des données : ")
         FICHIER_FUSIONNE = input("Entrez le nouveau fichier de sortie : ")
-        args.data_directory = REPERTOIRE_DONNEES
+        args.csv_directory = REPERTOIRE_DONNEES
         args.output_file = FICHIER_FUSIONNE
 
     # Exécution des actions en fonction de l'argument "action"
     if args.action == "consolider":
-        fusionner_fichiers(args.data_directory, args.output_file)
+        fusionner_fichiers(args.csv_directory, args.output_file)
 
     elif args.action == "chercher":
         if not args.critere:
             print("Vous devez fournir un critère de recherche avec --critere.")
         else:
             cle, valeur = args.critere.split("=")
-            rechercher_inventaire(args.output_file, (cle,valeur))
+            rechercher_inventaire(args.base_file, (cle, valeur))
 
     elif args.action == "résumer":
         try:
-            generer_resume(args.output_file, os.path.join(REPERTOIRE_DONNEES, "rapport_resume.csv"))
+            nom_fichier = args.base_file
+            generer_resume(nom_fichier, "output/resume.csv")
         except ValueError as e:
             print(f"Erreur lors de la génération du résumé : {e}")
+
 
 if __name__ == "__main__":
     main()
