@@ -2,133 +2,136 @@ import csv
 import os
 from typing import List, Dict
 
-# Constants for file paths
-DATA_DIRECTORY = "csv"
-CONSOLIDATED_FILE = "consolidated_inventory.csv"
+# Constantes pour les chemins des fichiers
+REPERTOIRE_DONNEES = "data"
+FICHIER_FUSIONNE = "inventaire_fusionne.csv"
 
 
-def consolidate_files(input_directory: str, output_file: str):
+def confirmer_parametres(parametres: str):
     """
-    Consolidates multiple CSV files into a single file.
+    Demande à l'utilisateur de confirmer les paramètres fournis.
 
     Args:
-        input_directory (str): Path to the directory containing CSV files.
-        output_file (str): Path to the output consolidated CSV file.
-    """
-    consolidated_data = []
-
-    # Read all CSV files in the directory
-    for file_name in os.listdir(input_directory):
-        file_path = os.path.join(input_directory, file_name)
-        if file_name.endswith('.csv'):
-            with open(file_path, 'r', newline='') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    consolidated_data.append(row)
-
-    if consolidated_data:
-        # Write consolidated data to the output file
-        with open(output_file, 'w', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=consolidated_data[0].keys())
-            writer.writeheader()
-            writer.writerows(consolidated_data)
-        print(f"Consolidation complete. Data saved to {output_file}")
-    else:
-        print("No data to consolidate.")
-
-
-def search_inventory(file_path: str, **filters) -> List[Dict[str, str]]:
-    """
-    Searches the inventory based on given filters.
-
-    Args:
-        file_path (str): Path to the consolidated CSV file.
-        **filters: Key-value pairs for filtering data.
+        parametres (str): Description des paramètres à confirmer.
 
     Returns:
-        List[Dict[str, str]]: List of matching rows.
+        bool: True si l'utilisateur confirme, False sinon.
     """
-    results = []
-
-    with open(file_path, 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            match = all(str(row[key]) == str(value) for key, value in filters.items() if key in row)
-            if match:
-                results.append(row)
-
-    return results
+    print(f"Est-ce bien ces paramètres : {parametres} ?")
+    print("1. Oui")
+    print("2. Non")
+    choix = input("Répondez 1 ou 2 : ")
+    return choix == "1"
 
 
-def generate_summary(file_path: str, output_file: str):
+def fusionner_fichiers(repertoire: str, fichier_sortie: str):
     """
-    Generates a summary report and exports it as a CSV file.
+    Fusionne plusieurs fichiers CSV en un fichier unique.
 
     Args:
-        file_path (str): Path to the consolidated CSV file.
-        output_file (str): Path to the summary output file.
+        repertoire (str): Chemin du répertoire contenant les fichiers CSV.
+        fichier_sortie (str): Chemin du fichier CSV fusionné.
     """
-    summary = {}
+    donnees_fusionnees = []
 
-    with open(file_path, 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            category = row.get('category', 'Unknown')
-            quantity = int(row.get('quantity', 0))
-            price = float(row.get('price', 0))
+    # Lecture de tous les fichiers CSV dans le répertoire
+    for nom_fichier in os.listdir(repertoire):
+        chemin_fichier = os.path.join(repertoire, nom_fichier)
+        if nom_fichier.endswith('.csv'):
+            with open(chemin_fichier, 'r', newline='') as fichier:
+                lecteur = csv.DictReader(fichier)
+                for ligne in lecteur:
+                    donnees_fusionnees.append(ligne)
 
-            if category not in summary:
-                summary[category] = {'total_quantity': 0, 'total_value': 0}
+    if donnees_fusionnees:
+        # Écriture des données fusionnées dans le fichier de sortie
+        with open(fichier_sortie, 'w', newline='') as fichier:
+            ecrivain = csv.DictWriter(fichier, fieldnames=donnees_fusionnees[0].keys())
+            ecrivain.writeheader()
+            ecrivain.writerows(donnees_fusionnees)
+        print(f"Fusion terminée. Données enregistrées dans {fichier_sortie}")
+    else:
+        print("Aucune donnée à fusionner.")
 
-            summary[category]['total_quantity'] += quantity
-            summary[category]['total_value'] += quantity * price
 
-    # Write summary to the output file
-    with open(output_file, 'w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=['category', 'total_quantity', 'total_value'])
-        writer.writeheader()
-        for category, data in summary.items():
-            writer.writerow({
-                'category': category,
-                'total_quantity': data['total_quantity'],
-                'total_value': data['total_value']
+def rechercher_inventaire(chemin_fichier: str, **filtres) -> List[Dict[str, str]]:
+    """
+    Recherche dans l'inventaire en fonction des filtres fournis.
+
+    Args:
+        chemin_fichier (str): Chemin du fichier CSV fusionné.
+        **filtres: Paires clé-valeur pour filtrer les données.
+
+    Returns:
+        List[Dict[str, str]]: Liste des lignes correspondantes.
+    """
+    resultats = []
+
+    with open(chemin_fichier, 'r', newline='') as fichier:
+        lecteur = csv.DictReader(fichier)
+        for ligne in lecteur:
+            correspondance = all(str(ligne[cle]) == str(valeur) for cle, valeur in filtres.items() if cle in ligne)
+            if correspondance:
+                resultats.append(ligne)
+
+    return resultats
+
+
+def generer_resume(chemin_fichier: str, fichier_sortie: str):
+    """
+    Génère un rapport récapitulatif et l'exporte en CSV.
+
+    Args:
+        chemin_fichier (str): Chemin du fichier CSV fusionné.
+        fichier_sortie (str): Chemin du fichier de sortie.
+    """
+    resume = {}
+
+    with open(chemin_fichier, 'r', newline='') as fichier:
+        lecteur = csv.DictReader(fichier)
+        for ligne in lecteur:
+            categorie = ligne.get('category', 'Inconnu')
+            quantite = int(ligne.get('quantity', 0))
+            prix = float(ligne.get('price', 0))
+
+            if categorie not in resume:
+                resume[categorie] = {'quantite_totale': 0, 'valeur_totale': 0}
+
+            resume[categorie]['quantite_totale'] += quantite
+            resume[categorie]['valeur_totale'] += quantite * prix
+
+    # Écriture du résumé dans le fichier de sortie
+    with open(fichier_sortie, 'w', newline='') as fichier:
+        ecrivain = csv.DictWriter(fichier, fieldnames=['categorie', 'quantite_totale', 'valeur_totale'])
+        ecrivain.writeheader()
+        for categorie, donnees in resume.items():
+            ecrivain.writerow({
+                'categorie': categorie,
+                'quantite_totale': donnees['quantite_totale'],
+                'valeur_totale': donnees['valeur_totale']
             })
-    print(f"Summary report generated: {output_file}")
+    print(f"Rapport récapitulatif généré : {fichier_sortie}")
 
-
-import argparse
 
 def main():
-    parser = argparse.ArgumentParser(description="Automatisez la gestion de l'inventaire avec ce script.")
-    subparsers = parser.add_subparsers(dest="command", help="Commandes disponibles")
+    # Demander confirmation des paramètres
+    parametres = f"Répertoire des données : {REPERTOIRE_DONNEES}, Fichier fusionné : {FICHIER_FUSIONNE}"
+    if not confirmer_parametres(parametres):
+        print("Veuillez relancer le programme avec les bons paramètres.")
+        exit()
 
-    # Commande pour consolider les fichiers
-    parser_consolidate = subparsers.add_parser("consolidate", help="Consolider les fichiers CSV")
-    parser_consolidate.add_argument("-i", "--input", required=True, help="Répertoire contenant les fichiers CSV")
-    parser_consolidate.add_argument("-o", "--output", required=True, help="Fichier de sortie consolidé")
+    # Assurer l'existence du répertoire
+    os.makedirs(REPERTOIRE_DONNEES, exist_ok=True)
 
-    # Commande pour rechercher
-    parser_search = subparsers.add_parser("search", help="Rechercher dans l'inventaire consolidé")
-    parser_search.add_argument("-f", "--file", required=True, help="Fichier CSV consolidé")
-    parser_search.add_argument("-c", "--category", help="Filtrer par catégorie")
+    # Fusionner les fichiers CSV
+    fusionner_fichiers(REPERTOIRE_DONNEES, FICHIER_FUSIONNE)
 
-    # Commande pour générer un rapport
-    parser_summary = subparsers.add_parser("summary", help="Générer un rapport résumé")
-    parser_summary.add_argument("-f", "--file", required=True, help="Fichier CSV consolidé")
-    parser_summary.add_argument("-o", "--output", required=True, help="Fichier de sortie du résumé")
+    # Rechercher des produits spécifiques
+    resultats_recherche = rechercher_inventaire(FICHIER_FUSIONNE, category="Electronics")
+    print("Résultats de recherche :", resultats_recherche)
 
-    args = parser.parse_args()
-
-    if args.command == "consolidate":
-        consolidate_files(args.input, args.output)
-    elif args.command == "search":
-        filters = {"category": args.category} if args.category else {}
-        results = search_inventory(args.file, **filters)
-        print("Résultats de la recherche :", results)
-    elif args.command == "summary":
-        generate_summary(args.file, args.output)
-    else:
-        parser.print_help()
+    # Générer un résumé
+    generer_resume(FICHIER_FUSIONNE, "rapport_resume.csv")
 
 if __name__ == "__main__":
     main()
