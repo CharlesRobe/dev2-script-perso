@@ -4,8 +4,8 @@ import argparse
 from typing import List, Dict
 
 # Constantes pour les chemins par défaut
-REPERTOIRE_DONNEES = "data"
-FICHIER_FUSIONNE = "inventaire_fusionne.csv"
+REPERTOIRE_DONNEES = "csv"
+FICHIER_FUSIONNE = os.path.join(REPERTOIRE_DONNEES, "inventaire_fusionne.csv")
 
 def confirmer_parametres(parametres: str) -> bool:
     """
@@ -24,6 +24,35 @@ def confirmer_parametres(parametres: str) -> bool:
     return choix == "1"
 
 
+
+def rechercher_inventaire(chemin_fichier: str, filtre) -> List[Dict[str, str]]:
+    """
+    Recherche dans l'inventaire en fonction des filtres fournis.
+
+    Args:
+        chemin_fichier (str): Chemin du fichier CSV fusionné.
+        filtre: tuple clé, valeur pour filtrer les données.
+
+    Returns:
+        List[Dict[str, str]]: Liste des lignes correspondantes.
+    """
+    resultats = []
+
+    with open(chemin_fichier, 'r', newline='') as fichier:
+        lecteur = csv.DictReader(fichier, delimiter=';')
+        if filtre[0] not in lecteur.fieldnames:
+            raise KeyError(f"Clé '{filtre[0]}' non trouvée dans le fichier CSV.")
+        for ligne in lecteur:
+            if str(ligne[filtre[0]]) == str(filtre[1]):
+                resultats.append(ligne)
+
+    print(f"{'Nom':<20} | {'Quantité':<10} | {'Prix (€)':<10} | {'Catégorie':<15}")
+    print("-" * 60)
+    for ligne in resultats:
+        print(f"{ligne['name']:<20} | {ligne['quantity']:<10} | {ligne['price']:<10} | {ligne['category']:<15}")
+
+
+
 def fusionner_fichiers(repertoire: str, fichier_sortie: str):
     """
     Fusionne plusieurs fichiers CSV en un fichier unique.
@@ -33,49 +62,32 @@ def fusionner_fichiers(repertoire: str, fichier_sortie: str):
         fichier_sortie (str): Chemin du fichier CSV fusionné.
     """
     donnees_fusionnees = []
+    colonnes_attendues = ["name", "quantity", "price", "category"]
 
     # Lecture de tous les fichiers CSV dans le répertoire
     for nom_fichier in os.listdir(repertoire):
         chemin_fichier = os.path.join(repertoire, nom_fichier)
         if nom_fichier.endswith('.csv'):
-            with open(chemin_fichier, 'r', newline='') as fichier:
-                lecteur = csv.DictReader(fichier)
+            with open(chemin_fichier, 'r', newline='', encoding='utf-8') as fichier:
+                lecteur = csv.DictReader(fichier, delimiter=";")
+                # Vérifier si les colonnes correspondent
+                if lecteur.fieldnames != colonnes_attendues:
+                    print(f"Les colonnes du fichier {nom_fichier} ne correspondent pas aux colonnes attendues.")
+                    print(f"Colonnes trouvées : {lecteur.fieldnames}")
+                    print(f"Colonnes attendues : {colonnes_attendues}")
+                    continue
                 for ligne in lecteur:
                     donnees_fusionnees.append(ligne)
 
     if donnees_fusionnees:
         # Écriture des données fusionnées dans le fichier de sortie
-        with open(fichier_sortie, 'w', newline='') as fichier:
-            ecrivain = csv.DictWriter(fichier, fieldnames=donnees_fusionnees[0].keys())
+        with open(fichier_sortie, 'w', newline='', encoding='utf-8') as fichier:
+            ecrivain = csv.DictWriter(fichier, fieldnames=colonnes_attendues, delimiter=";")
             ecrivain.writeheader()
             ecrivain.writerows(donnees_fusionnees)
         print(f"Fusion terminée. Données enregistrées dans {fichier_sortie}")
     else:
-        print("Aucune donnée à fusionner.")
-
-
-def rechercher_inventaire(chemin_fichier: str, **filtres) -> List[Dict[str, str]]:
-    """
-    Recherche dans l'inventaire en fonction des filtres fournis.
-
-    Args:
-        chemin_fichier (str): Chemin du fichier CSV fusionné.
-        **filtres: Paires clé-valeur pour filtrer les données.
-
-    Returns:
-        List[Dict[str, str]]: Liste des lignes correspondantes.
-    """
-    resultats = []
-
-    with open(chemin_fichier, 'r', newline='') as fichier:
-        lecteur = csv.DictReader(fichier)
-        for ligne in lecteur:
-            correspondance = all(str(ligne[cle]) == str(valeur) for cle, valeur in filtres.items() if cle in ligne)
-            if correspondance:
-                resultats.append(ligne)
-
-    return resultats
-
+        print("Aucune donnée valide à fusionner.")
 
 def generer_resume(chemin_fichier: str, fichier_sortie: str):
     """
@@ -86,12 +98,20 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
         fichier_sortie (str): Chemin du fichier de sortie.
 
     Raises:
-        ValueError: Si le fichier source est vide.
+        ValueError: Si le fichier source est vide ou mal formaté.
     """
     resume = {}
 
-    with open(chemin_fichier, 'r', newline='') as fichier:
-        lecteur = csv.DictReader(fichier)
+    with open(chemin_fichier, 'r', newline='', encoding='utf-8') as fichier:
+        lecteur = csv.DictReader(fichier, delimiter=";")
+        colonnes_attendues = ["name", "quantity", "price", "category"]
+
+        # Vérifier si les colonnes correspondent
+        if lecteur.fieldnames != colonnes_attendues:
+            raise ValueError(f"Les colonnes du fichier source ne correspondent pas aux colonnes attendues.\n"
+                             f"Colonnes trouvées : {lecteur.fieldnames}\n"
+                             f"Colonnes attendues : {colonnes_attendues}")
+
         lignes = list(lecteur)
         if not lignes:
             raise ValueError(f"Le fichier source {chemin_fichier} est vide.")
@@ -108,8 +128,8 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
             resume[categorie]['valeur_totale'] += quantite * prix
 
     # Écriture du résumé dans le fichier de sortie
-    with open(fichier_sortie, 'w', newline='') as fichier:
-        ecrivain = csv.DictWriter(fichier, fieldnames=['categorie', 'quantite_totale', 'valeur_totale'])
+    with open(fichier_sortie, 'w', newline='', encoding='utf-8') as fichier:
+        ecrivain = csv.DictWriter(fichier, fieldnames=['categorie', 'quantite_totale', 'valeur_totale'], delimiter=";")
         ecrivain.writeheader()
         for categorie, donnees in resume.items():
             ecrivain.writerow({
@@ -134,8 +154,12 @@ def main():
                         help="Répertoire contenant les fichiers CSV.")
     parser.add_argument("-o", "--output-file", default=FICHIER_FUSIONNE,
                         help="Chemin du fichier fusionné.")
-    parser.add_argument("-c", "--critere", help="Critère de recherche pour l'action 'chercher' (ex : category=Electronics).")
+    parser.add_argument("-c", "--critere", help="Critère de recherche pour l'action 'chercher' (ex : "
+                                                "category=Electronics).")
     args = parser.parse_args()
+
+    # Assurer l'existence du répertoire csv
+    os.makedirs(REPERTOIRE_DONNEES, exist_ok=True)
 
     # Confirmation interactive
     parametres = f"Action : {args.action}, Répertoire : {args.data_directory}, Fichier : {args.output_file}"
@@ -154,15 +178,13 @@ def main():
             print("Vous devez fournir un critère de recherche avec --critere.")
         else:
             cle, valeur = args.critere.split("=")
-            resultats = rechercher_inventaire(args.output_file, **{cle: valeur})
-            print("Résultats de recherche :", resultats)
+            rechercher_inventaire(args.output_file, (cle,valeur))
 
     elif args.action == "résumer":
         try:
-            generer_resume(args.output_file, "rapport_resume.csv")
+            generer_resume(args.output_file, os.path.join(REPERTOIRE_DONNEES, "rapport_resume.csv"))
         except ValueError as e:
             print(f"Erreur lors de la génération du résumé : {e}")
-
 
 if __name__ == "__main__":
     main()
