@@ -32,9 +32,6 @@ def rechercher_inventaire(chemin_fichier: str, filtre) -> List[Dict[str, str]]:
     Args:
         chemin_fichier (str): Chemin du fichier CSV fusionné.
         filtre: tuple clé, valeur pour filtrer les données.
-
-    Returns:
-        List[Dict[str, str]]: Liste des lignes correspondantes.
     """
     resultats = []
     print(chemin_fichier)
