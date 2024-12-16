@@ -1,13 +1,13 @@
 import csv
 import os
+import argparse
 from typing import List, Dict
 
-# Constantes pour les chemins des fichiers
+# Constantes pour les chemins par défaut
 REPERTOIRE_DONNEES = "data"
 FICHIER_FUSIONNE = "inventaire_fusionne.csv"
 
-
-def confirmer_parametres(parametres: str):
+def confirmer_parametres(parametres: str) -> bool:
     """
     Demande à l'utilisateur de confirmer les paramètres fournis.
 
@@ -84,12 +84,19 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
     Args:
         chemin_fichier (str): Chemin du fichier CSV fusionné.
         fichier_sortie (str): Chemin du fichier de sortie.
+
+    Raises:
+        ValueError: Si le fichier source est vide.
     """
     resume = {}
 
     with open(chemin_fichier, 'r', newline='') as fichier:
         lecteur = csv.DictReader(fichier)
-        for ligne in lecteur:
+        lignes = list(lecteur)
+        if not lignes:
+            raise ValueError(f"Le fichier source {chemin_fichier} est vide.")
+
+        for ligne in lignes:
             categorie = ligne.get('category', 'Inconnu')
             quantite = int(ligne.get('quantity', 0))
             prix = float(ligne.get('price', 0))
@@ -114,24 +121,57 @@ def generer_resume(chemin_fichier: str, fichier_sortie: str):
 
 
 def main():
-    # Demander confirmation des paramètres
-    parametres = f"Répertoire des données : {REPERTOIRE_DONNEES}, Fichier fusionné : {FICHIER_FUSIONNE}"
-    if not confirmer_parametres(parametres):
-        print("Veuillez relancer le programme avec les bons paramètres.")
-        exit()
+    """
+    Point d'entrée principal. Affiche un menu interactif pour que l'utilisateur choisisse une action.
+    """
+    global REPERTOIRE_DONNEES, FICHIER_FUSIONNE
 
-    # Assurer l'existence du répertoire
-    os.makedirs(REPERTOIRE_DONNEES, exist_ok=True)
+    # Configuration des arguments via argparse
+    parser = argparse.ArgumentParser(description="Automatisez la gestion de l'inventaire.")
+    parser.add_argument("-d", "--data-directory", default=REPERTOIRE_DONNEES,
+                        help="Répertoire contenant les fichiers CSV.")
+    parser.add_argument("-o", "--output-file", default=FICHIER_FUSIONNE,
+                        help="Chemin du fichier fusionné.")
+    args = parser.parse_args()
 
-    # Fusionner les fichiers CSV
-    fusionner_fichiers(REPERTOIRE_DONNEES, FICHIER_FUSIONNE)
+    # Mise à jour des constantes à partir des arguments
+    REPERTOIRE_DONNEES = args.data_directory
+    FICHIER_FUSIONNE = args.output_file
 
-    # Rechercher des produits spécifiques
-    resultats_recherche = rechercher_inventaire(FICHIER_FUSIONNE, category="Electronics")
-    print("Résultats de recherche :", resultats_recherche)
+    while True:
+        print("\n=== Menu de gestion de l'inventaire ===")
+        print("1. Consolider les fichiers CSV")
+        print("2. Rechercher dans l'inventaire")
+        print("3. Générer un rapport récapitulatif")
+        print("4. Quitter")
+        choix = input("Choisissez une option (1-4) : ")
 
-    # Générer un résumé
-    generer_resume(FICHIER_FUSIONNE, "rapport_resume.csv")
+        if choix == "1":
+            # Consolider les fichiers CSV
+            fusionner_fichiers(REPERTOIRE_DONNEES, FICHIER_FUSIONNE)
+
+        elif choix == "2":
+            # Rechercher dans l'inventaire
+            critere = input("Entrez un critère de recherche (ex : category=Electronics) : ")
+            cle, valeur = critere.split("=")
+            resultats = rechercher_inventaire(FICHIER_FUSIONNE, **{cle: valeur})
+            print("Résultats de recherche :", resultats)
+
+        elif choix == "3":
+            # Générer un rapport récapitulatif
+            try:
+                generer_resume(FICHIER_FUSIONNE, "rapport_resume.csv")
+            except ValueError as e:
+                print(f"Erreur lors de la génération du résumé : {e}")
+
+        elif choix == "4":
+            # Quitter le programme
+            print("Au revoir !")
+            break
+
+        else:
+            print("Option invalide, veuillez réessayer.")
+
 
 if __name__ == "__main__":
     main()
